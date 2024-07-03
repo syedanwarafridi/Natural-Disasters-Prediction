@@ -53,7 +53,7 @@ app.layout = html.Div([
         dcc.Dropdown(
             id='country-dropdown',
             options=[{'label': country, 'value': country} for country in df['Country'].unique()],
-            value=df['Country'].unique()[0],  # default value
+            value=df['Country'].unique()[0],
             style={'fontSize': '16px'}
         )
     ], style={'width': '50%', 'padding': '10px', 'margin': 'auto'}),
@@ -80,10 +80,10 @@ app.layout = html.Div([
         )
     ], style={'display': 'flex', 'flexDirection': 'row', 'justifyContent': 'space-around'}),
 
-    # dcc.Graph(
-    #     id='earth-map',
-    #     style={'padding': '20px'}
-    # ),
+    dcc.Graph(
+        id='earth-map',
+        style={'padding': '20px'}
+    ),
 
     dcc.Graph(
         id='region-pie-chart',
@@ -135,24 +135,24 @@ def update_country_plots(selected_country):
 
     return country_plot, country_earthquakes
 
-# # Callback to update the Earth map
-# @app.callback(
-#     Output('earth-map', 'figure'),
-#     [Input('country-dropdown', 'value')]
-# )
-# def update_earth_map(selected_country):
-#     fig = px.scatter_geo(
-#         df[df['Country'] == selected_country],
-#         lat='Latitude',
-#         lon='Longitude',
-#         color='Magnitude',
-#         size='Depth',
-#         hover_name='Country',
-#         title=f'Earthquakes in {selected_country}'
-#     )
-#     fig.update_geos(showcoastlines=True, coastlinecolor="Black", showland=True, landcolor="lightgray")
-#     fig.update_layout(title={'text': f'Global Earthquake Map', 'x': 0.5}, title_font={'size': 24, 'color': '#0074D9', 'family': 'Arial'})
-#     return fig
+# Callback to update the Earth map
+@app.callback(
+    Output('earth-map', 'figure'),
+    [Input('country-dropdown', 'value')]
+)
+def update_earth_map(selected_country):
+    fig = px.scatter_geo(
+        df[df['Country'] == selected_country],
+        lat='Latitude',
+        lon='Longitude',
+        color='Magnitude',
+        size='Depth',
+        hover_name='Country',
+        title=f'Earthquakes in {selected_country}'
+    )
+    fig.update_geos(showcoastlines=True, coastlinecolor="Black", showland=True, landcolor="lightgray")
+    fig.update_layout(title={'text': f'Global Earthquake Map', 'x': 0.5}, title_font={'size': 24, 'color': '#0074D9', 'family': 'Arial'})
+    return fig
 
 # Callback to update the region pie chart
 @app.callback(

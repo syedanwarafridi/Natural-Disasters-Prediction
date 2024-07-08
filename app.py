@@ -1,11 +1,47 @@
 import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash import dcc, html, Input, Output, State
 import pandas as pd
+import numpy as np
 import plotly.express as px
+from dash.exceptions import PreventUpdate
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # Load the dataset
 df = pd.read_csv('./datasets/earthquake data.csv')
+
+# Data cleaning
+df['Date & Time'] = pd.to_datetime(df['Date & Time'])
+
+# Handle negative depth values
+df['Depth'] = df['Depth'].apply(lambda x: x if x > 0 else 1)
+
+# Load the trained model with custom loss
+custom_objects = {"mse": "mean_squared_error"}
+model = load_model('earthquake_depth_prediction_model.h5', custom_objects=custom_objects)
+
+# Initialize encoders and scaler
+lands_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+country_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+scaler = StandardScaler()
+
+# Fit encoders and scaler on training data
+df['year'] = df['Date & Time'].dt.year
+df['month'] = df['Date & Time'].dt.month
+df['day'] = df['Date & Time'].dt.day
+df['hour'] = df['Date & Time'].dt.hour
+df['minute'] = df['Date & Time'].dt.minute
+
+lands_encoded = lands_encoder.fit_transform(df[['Lands']])
+country_encoded = country_encoder.fit_transform(df[['Country']])
+
+training_data_points = np.hstack([
+    df[['Latitude', 'Longitude', 'Magnitude', 'year', 'month', 'day', 'hour', 'minute']].values,
+    lands_encoded,
+    country_encoded
+])
+
+scaler.fit(training_data_points)
 
 # Data cleaning
 df['Date & Time'] = pd.to_datetime(df['Date & Time'])
@@ -88,16 +124,47 @@ app.layout = html.Div([
     dcc.Graph(
         id='region-pie-chart',
         style={'padding': '20px'}
-    )
-], 
-    style={
-        'fontFamily': 'Arial, sans-serif', 
-        'backgroundColor': '#F7F7F7',
-        'backgroundImage': 'url("https://www.transparenttextures.com/patterns/diagonal-stripes.png")',
-        'backgroundSize': 'cover',
-        'padding': '20px'
-    }
-)
+    ),
+
+    html.Div([
+        html.H2("Input for New Prediction", style={'textAlign': 'center', 'color': '#0074D9', 'fontWeight': 'bold'}),
+        
+        html.Label('Latitude:'),
+        dcc.Input(id='input-latitude', type='number', value=0.0, style={'marginBottom': '10px'}),
+        
+        html.Label('Longitude:'),
+        dcc.Input(id='input-longitude', type='number', value=0.0, style={'marginBottom': '10px'}),
+        
+        html.Label('Magnitude:'),
+        dcc.Input(id='input-magnitude', type='number', value=0.0, style={'marginBottom': '10px'}),
+        
+        html.Label('Date & Time:'),
+        dcc.Input(id='input-date-time', type='text', placeholder='YYYY-MM-DD HH:MM', style={'marginBottom': '10px'}),
+        
+        html.Label('Lands:'),
+        dcc.Input(id='input-lands', type='text', style={'marginBottom': '10px'}),
+        
+        html.Label('Country:'),
+        dcc.Dropdown(
+            id='input-country',
+            options=[{'label': country, 'value': country} for country in df['Country'].unique()],
+            value=df['Country'].unique()[0],
+            style={'marginBottom': '10px'}
+        ),
+        
+        html.Button('Predict Depth', id='submit-button', n_clicks=0, style={'display': 'block', 'margin': 'auto'}),
+        
+        html.Div(id='prediction-output', style={'textAlign': 'center', 'color': '#0074D9', 'fontSize': '20px', 'fontWeight': 'bold', 'marginTop': '20px'})
+    ], style={'maxWidth': '800px', 'margin': 'auto'})
+],
+
+style={
+    'fontFamily': 'Arial, sans-serif', 
+    'backgroundColor': '#F7F7F7',
+    'backgroundImage': 'url("https://www.transparenttextures.com/patterns/diagonal-stripes.png")',
+    'backgroundSize': 'cover',
+    'padding': '20px'
+})
 
 # Callback to update the histograms based on selected country
 @app.callback(
@@ -167,6 +234,67 @@ def update_region_pie_chart(selected_country):
     fig.update_traces(textinfo='percent+label')
     fig.update_layout(title={'text': '', 'x': 0.5}, title_font={'size': 24, 'color': '#0074D9', 'family': 'Arial'})
     return fig
+
+
+# Callback to update the prediction output
+@app.callback(
+    Output('prediction-output', 'children'),
+    [Input('submit-button', 'n_clicks')],
+    [State('input-latitude', 'value'),
+     State('input-longitude', 'value'),
+     State('input-magnitude', 'value'),
+     State('input-date-time', 'value'),
+     State('input-lands', 'value'),
+     State('input-country', 'value')]
+)
+def update_prediction(n_clicks, latitude, longitude, magnitude, date_time, lands, country):
+    if n_clicks > 0:
+        # Create new_data dictionary and process the inputs
+        new_data = {
+            "Date & Time": [date_time],
+            "Latitude": [latitude],
+            "Longitude": [longitude],
+            "Magnitude": [magnitude],
+            "Lands": [lands],
+            "Country": [country]
+        }
+
+        new_df = pd.DataFrame(new_data)
+
+        # Preprocess the new data
+        new_df['Date & Time'] = pd.to_datetime(new_df['Date & Time'])
+        new_df['year'] = new_df['Date & Time'].dt.year
+        new_df['month'] = new_df['Date & Time'].dt.month
+        new_df['day'] = new_df['Date & Time'].dt.day
+        new_df['hour'] = new_df['Date & Time'].dt.hour
+        new_df['minute'] = new_df['Date & Time'].dt.minute
+
+        # Transform the new data using fitted encoders
+        lands_encoded_new = lands_encoder.transform(new_df[['Lands']])
+        country_encoded_new = country_encoder.transform(new_df[['Country']])
+
+        # Prepare new data for prediction
+        new_data_points = np.hstack([
+            new_df[['Latitude', 'Longitude', 'Magnitude', 'year', 'month', 'day', 'hour', 'minute']].values,
+            lands_encoded_new,
+            country_encoded_new
+        ])
+
+        # Scale the new data using the fitted scaler
+        new_data_points_scaled = scaler.transform(new_data_points)
+
+        # Reshape the data to fit the model input
+        new_data_points_scaled = new_data_points_scaled.reshape((new_data_points_scaled.shape[0], 1, new_data_points_scaled.shape[1]))
+
+        # Make predictions
+        predictions = model.predict(new_data_points_scaled)
+
+        # Output the predictions
+        prediction_output = f"Predicted Depth: {predictions[0][0]}"
+
+        return prediction_output
+
+    return ''
 
 # Run the app
 if __name__ == '__main__':

@@ -43,12 +43,6 @@ training_data_points = np.hstack([
 
 scaler.fit(training_data_points)
 
-# Data cleaning
-df['Date & Time'] = pd.to_datetime(df['Date & Time'])
-
-# Handle negative depth values
-df['Depth'] = df['Depth'].apply(lambda x: x if x > 0 else 1)
-
 # Initialize the Dash app
 app = dash.Dash(__name__)
 
@@ -127,32 +121,34 @@ app.layout = html.Div([
     ),
 
     html.Div([
-        html.H2("Input for New Prediction", style={'textAlign': 'center', 'color': '#0074D9', 'fontWeight': 'bold'}),
+        html.H2("Prediction", style={'textAlign': 'center', 'color': '#0074D9', 'fontWeight': 'bold'}),
+
+        html.Div([
+            html.Label('Latitude:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Input(id='input-latitude', type='number', value=0.0, style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}),
+            
+            html.Label('Longitude:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Input(id='input-longitude', type='number', value=0.0, style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}),
+            
+            html.Label('Magnitude:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Input(id='input-magnitude', type='number', value=0.0, style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}),
+            
+            html.Label('Date & Time:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Input(id='input-date-time', type='text', placeholder='YYYY-MM-DD HH:MM', style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}),
+            
+            html.Label('Lands:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Input(id='input-lands', type='text', style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}),
+            
+            html.Label('Country:', style={'fontSize': '18px', 'color': '#0074D9'}),
+            dcc.Dropdown(
+                id='input-country',
+                options=[{'label': country, 'value': country} for country in df['Country'].unique()],
+                value=df['Country'].unique()[0],
+                style={'marginBottom': '10px', 'width': '97%', 'padding': '10px', 'borderRadius': '5px', 'border': '1px solid #0074D9'}
+            ),
+        ], style={'display': 'grid', 'gap': '10px', 'padding': '20px', 'backgroundColor': '#E5F6FE', 'borderRadius': '10px', 'boxShadow': '0 4px 8px rgba(0, 0, 0, 0.1)', 'maxWidth': '600px', 'margin': 'auto'}),
         
-        html.Label('Latitude:'),
-        dcc.Input(id='input-latitude', type='number', value=0.0, style={'marginBottom': '10px'}),
-        
-        html.Label('Longitude:'),
-        dcc.Input(id='input-longitude', type='number', value=0.0, style={'marginBottom': '10px'}),
-        
-        html.Label('Magnitude:'),
-        dcc.Input(id='input-magnitude', type='number', value=0.0, style={'marginBottom': '10px'}),
-        
-        html.Label('Date & Time:'),
-        dcc.Input(id='input-date-time', type='text', placeholder='YYYY-MM-DD HH:MM', style={'marginBottom': '10px'}),
-        
-        html.Label('Lands:'),
-        dcc.Input(id='input-lands', type='text', style={'marginBottom': '10px'}),
-        
-        html.Label('Country:'),
-        dcc.Dropdown(
-            id='input-country',
-            options=[{'label': country, 'value': country} for country in df['Country'].unique()],
-            value=df['Country'].unique()[0],
-            style={'marginBottom': '10px'}
-        ),
-        
-        html.Button('Predict Depth', id='submit-button', n_clicks=0, style={'display': 'block', 'margin': 'auto'}),
+        html.Button('Predict Depth', id='submit-button', n_clicks=0, style={'display': 'block', 'margin': '20px auto', 'padding': '15px 30px', 'backgroundColor': '#0074D9', 'color': 'white', 'fontSize': '18px', 'fontWeight': 'bold', 'border': 'none', 'borderRadius': '5px', 'cursor': 'pointer'}),
         
         html.Div(id='prediction-output', style={'textAlign': 'center', 'color': '#0074D9', 'fontSize': '20px', 'fontWeight': 'bold', 'marginTop': '20px'})
     ], style={'maxWidth': '800px', 'margin': 'auto'})
